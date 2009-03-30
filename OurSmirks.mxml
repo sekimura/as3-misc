@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" applicationComplete="init()" 
+	 height="460">
+	<mx:states>
+		<mx:State name="Snapshot">
+			<mx:RemoveChild target="{vid1}"/>
+			<mx:RemoveChild target="{button1}"/>
+			<mx:AddChild position="lastChild">
+				<mx:Image id="snapshot" x="10" y="10" width="300" height="300"/>
+			</mx:AddChild>
+			<mx:AddChild position="lastChild">
+				<mx:Button x="10" y="318" label="Again" height="32" click="init()" width="138.5" fillAlphas="[1.0, 1.0]" fillColors="[#DD0A0A, #DD0A0A]" color="#CCCECE"/>
+			</mx:AddChild>
+			<mx:AddChild position="lastChild">
+				<mx:Button x="156.5" y="318" label="Post" height="32" click="postNewMediaObject()" width="153.5" fillAlphas="[1.0, 1.0]" fillColors="[#50D00A, #50D00A]"/>
+			</mx:AddChild>
+		</mx:State>
+	</mx:states>
+	<mx:VideoDisplay id="vid1" x="10" y="10" width="300" height="300"/>
+	<mx:Button x="130.5" y="318" label="Shoot" height="33" click="shoot()" id="button1"/>
+	<mx:HorizontalList id="myList" 
+		x="10" y="359" width="300" height="91" 
+		columnCount="3" horizontalScrollPolicy="off"
+		dataProvider="{cat}" 
+		change="snapshot.load(cat[myList.selectedIndex].bytes)">
+		<mx:itemRenderer>
+			<mx:Component>
+				<mx:HBox width="90" height="90" horizontalAlign="center" verticalAlign="center">
+				<mx:Script>
+					<![CDATA[
+						import mx.controls.Image;
+						import flash.display.Loader;
+						private var _bytes:ByteArray;
+						
+						override public function set data(value:Object):void {
+							super.data = value;
+							removeAllChildren();
+							_bytes = data.bytes;
+						 	var ldr:Loader = new Loader();
+							ldr.contentLoaderInfo.addEventListener(Event.COMPLETE, function(evt:Event):void {
+								trace("comp: " + evt.currentTarget.width);
+						        var img:Image = new Image;
+						        img.source = evt.target.content;
+						        img.width = 75;
+						        img.height = 75;
+						        img.toolTip = evt.target.bytesTotal.toString();
+						        addChild(img);   								
+							});
+   							ldr.loadBytes(_bytes);
+						}
+					]]>
+				</mx:Script>
+				</mx:HBox>
+			</mx:Component>
+		</mx:itemRenderer>
+	</mx:HorizontalList>
+	<mx:Script>
+		<![CDATA[
+			import mx.messaging.messages.ErrorMessage;
+			import mx.collections.ArrayCollection;
+			import mx.graphics.codec.JPEGEncoder;
+			import mx.graphics.ImageSnapshot;
+			import mx.controls.Alert;
+			import flash.media.Camera;
+			import flash.display.BitmapData;
+			import com.dynamicflash.util.Base64;
+			import mx.controls.Image;
+			
+			private var cam:Camera;
+			[Bindable]
+			private var cat:Array = [];
+			
+			private function init():void {
+				currentState = '';
+				if (!cam) {
+					cam = Camera.getCamera();
+					cam.setMode(300, 300, 30);
+					if (!cam) {
+						Alert.show("where's your camera?");
+					}
+				}
+				vid1.attachCamera(cam);
+			}
+			private function shoot():void {
+				var bmd:BitmapData = new BitmapData(vid1.width, vid1.height);
+				bmd.draw(vid1);
+
+				currentState = 'Snapshot';
+
+                var imageSnap:ImageSnapshot = ImageSnapshot.captureImage(bmd);
+                var imageByteArray:ByteArray = imageSnap.data as ByteArray;
+				snapshot.load(imageByteArray);
+				cat.unshift({bytes:imageByteArray, hoge:imageByteArray.length.toString()});
+				if (cat.length > 3) {
+					cat.splice(-1, 1);
+				}
+				myList.dataProvider = new ArrayCollection(cat);				
+			}
+			private function postNewMediaObject():void {
+				Alert.show('posted');
+			}
+		]]>
+	</mx:Script>
+</mx:Application>
