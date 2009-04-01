@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" creationComplete="init()">
+	<mx:states>
+		<mx:State name="authorized"/>
+	</mx:states>
+	<mx:Script>
+		<![CDATA[
+			import mx.events.StateChangeEvent;
+			import flash.text.engine.EastAsianJustifier;
+			import mx.charts.chartClasses.StackedSeries;
+			import mx.collections.ArrayCollection;
+			import twitter.api.*;
+			import twitter.api.events.*;
+			import twitteroauth.api.*;
+			import org.iotashan.oauth.*;
+			import org.iotashan.utils.URLEncoding;
+			import com.dynamicflash.util.Base64;
+
+			private var consumerKey:String = "iUTq4zy9652nqbIUoOcLig";
+			private var consumerSecret:String = "UUXO6cFnvtrIJPx7OZURZet89a8w5SsFUVffPHGXM";
+			private var requestTokenUrl:String = "http://twitter.com/oauth/request_token";
+			private var accessTokenUrl:String = "http://twitter.com/oauth/access_token";
+			private var authorizeUrl:String = "http://twitter.com/oauth/authorize";
+			private	var cons:OAuthConsumer = new OAuthConsumer(consumerKey, consumerSecret);
+			private var s:OAuthSignatureMethod_HMAC_SHA1 = new OAuthSignatureMethod_HMAC_SHA1();
+			private var token:OAuthToken = new OAuthToken();
+			private var authorized:Boolean = false;
+
+			private function init():void {
+				//get request token
+				var r:OAuthRequest = new OAuthRequest("GET",requestTokenUrl,null,cons,null);
+				var req:URLRequest = new URLRequest(r.buildRequest(s));
+				var loader:URLLoader = new URLLoader();
+				loader.addEventListener(Event.COMPLETE, onRequestToken);
+				loader.load(req);
+			}
+
+			private function onRequestToken(evt:Event):void {
+				var requestTokenResponse:String = evt.currentTarget.data;
+				var params:Array = requestTokenResponse.split("&");
+				for (var i:int = 0; i < params.length; i++) {
+            		var param:String = params[i];
+            		var nameValue:Array = param.split("=");
+					if (nameValue.length == 2) {
+                		switch (nameValue[0]) {
+                			case "oauth_token":
+                				token.key = nameValue[1];
+                				trace("token.key: " + token.key);
+                				break;
+                			case "oauth_token_secret":
+                				token.secret = nameValue[1];
+                				trace("token.secret: " + token.secret);
+                				break;
+                			defaut:
+                				trace("don't know this param: " + param);
+                		}
+					}
+				}
+				var req:URLRequest = new URLRequest(authorizeUrl + "?oauth_token=" + token.key);
+				openAuthPage.addEventListener(MouseEvent.CLICK, function ():void {
+					navigateToURL(req, "_blank");
+				});
+				openAuthPage.label = "Open browser to grant access via OAuth";
+			}
+
+			private function getAccessToken():void {
+				var r:OAuthRequest = new OAuthRequest("GET",accessTokenUrl,null,cons,token);
+				var req:URLRequest = new URLRequest(r.buildRequest(s));
+				var loader:URLLoader = new URLLoader();
+				loader.addEventListener(Event.COMPLETE, onAccessToken);
+				loader.load(req);
+			}
+
+			private function onAccessToken(evt:Event):void {
+				var requestTokenResponse:String = evt.currentTarget.data;
+				var params:Array = requestTokenResponse.split("&");
+				for (var i:int = 0; i < params.length; i++) {
+            		var param:String = params[i];
+            		var nameValue:Array = param.split("=");
+					if (nameValue.length == 2) {
+                		switch (nameValue[0]) {
+                			case "oauth_token":
+                				token.key = nameValue[1];
+                				trace("token.key: " + token.key);
+                				break;
+                			case "oauth_token_secret":
+                				token.secret = nameValue[1];
+                				trace("token.secret: " + token.secret);
+                				break;
+                			defaut:
+                				trace("don't know this param: " + param);
+                		}
+					}
+				}
+				authorized = true;
+				openAuthPage.label = "got access token";
+				currentState = 'authorized';
+			}
+			private function sendRequest():void {
+				var url:String = requestUrl.selectedLabel;
+				if (! authorized) {
+					this.addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, function ():void {
+						var r:OAuthRequest = new OAuthRequest("GET",url,null,cons,token);
+						var req:URLRequest = new URLRequest(r.buildRequest(s));
+						var loader:URLLoader = new URLLoader();
+						loader.addEventListener(Event.COMPLETE, onSendRequest);
+						loader.load(req);
+					});
+					getAccessToken();
+				} else {
+					var r:OAuthRequest = new OAuthRequest("GET",url,null,cons,token);
+					var req:URLRequest = new URLRequest(r.buildRequest(s));
+					var loader:URLLoader = new URLLoader();
+					loader.addEventListener(Event.COMPLETE, onSendRequest);
+					loader.load(req);
+				}
+			}
+			private function onSendRequest(evt:Event):void {
+				trace(evt.currentTarget.data);
+				output.text = evt.currentTarget.data;
+			}
+		]]>
+	</mx:Script>
+	<mx:Button id="openAuthPage"  x="10" y="10" label="Authorize"/>
+	<mx:Button id="openAuthPage1" click="getAccessToken()" x="10" y="40" label="access token"/>
+	<mx:Button id="openAuthPage0" click="sendRequest()" x="10" y="100" label="send"/>
+	<mx:ComboBox id="requestUrl" x="10" y="70" width="319">
+		<mx:dataProvider>
+			<mx:ArrayCollection>
+				<mx:String>https://twitter.com/account/verify_credentials.json</mx:String>
+				<mx:String>https://twitter.com/statuses/friends_timeline.json</mx:String>
+			</mx:ArrayCollection>
+		</mx:dataProvider>
+	</mx:ComboBox>
+	<mx:TextArea id="output" x="10" y="130" width="263" height="185"/>
+	
+</mx:WindowedApplication>
